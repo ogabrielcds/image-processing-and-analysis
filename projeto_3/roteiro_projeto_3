@@ -1,0 +1,101 @@
+--------------------------------------------------------------### Funções:
+
+---a) Salvar imagem
+* isinstance(img, np.ndarray): Verifica se os dados estão no formato de matriz do NumPy.
+
+* .astype(np.uint8): converte os números (que podem ser decimais ou negativos após os filtros) para inteiros de 8 bits (0 a 255) na escala cinza.
+
+* Image.fromarray(...): Transforma a "matriz numérica" em uma imagem da biblioteca Pillow, permitindo o uso do método .save().
+
+--- b) Normalizar Kernel
+
+* np.sum(kernel): Calcula a soma de todos os pesos dentro da matriz do filtro.
+
+* kernel / np.sum(kernel): Garante que a soma total do kernel seja exatamente $1$.Por que funciona? Ao multiplicar a imagem por um kernel que soma 1, você mantém a intensidade luminosa original, apenas redistribuindo os valores entre os vizinhos para criar o efeito de desfoque (passa-baixa).
+
+--- c) Normalizar imagem 
+
+* Os filtros de borda (passa-alta) resultam em muitos números negativos e valores fora da escala 0-255O cálculo, portanto é necessário normalizar para transformar o menor valor da imagem em 0 (preto) e o maior valor em 255 (branco), distribuindo tudo o que está no meio de forma proporcional. Isso permite que você visualize com clareza a eficiência da detecção de bordas pedida no exercício, então é essencial para a visualização dos resultados
+
+--- 2)
+kernel = np.ones((tamanho, tamanho)):Esta linha cria uma matriz quadrada (2D) com a dimensão especificada pela variável tamanho.Todos os elementos dessa matriz são preenchidos com o número 1.
+
+No filtro da média, queremos que todos os pixels vizinhos tenham o mesmo "peso" ou importância na hora de calcular o novo valor do pixel central.
+
+return normalizar_kernel(kernel):Aqui, a função chama aquela outra função de normalização que discutimos anteriormente. Ela divide cada valor 1 da matriz pela soma total de todos os elementos (que seria $tamanho \times tamanho$).
+
+Exemplo: Se o tamanho for 3, o kernel terá 9 elementos. Sem a normalização, o kernel seria uma matriz de 1s. Com a normalização, cada elemento vira $1/9 \approx 0,111$
+
+--- Aplicar convolução:
+
+k = kernel.shape[0]: Identifica o tamanho da "janela" do seu filtro (ex: 15 pixels).pad = k // 2: Como o pixel de interesse fica no centro, precisamos de vizinhos para todos os lados. 
+
+Se o kernel tem 15 pixels, o pixel central é o 8º. Isso significa que ele precisa de 7 pixels extras para cima, para baixo, para a esquerda e para a direita ($15 // 2 = 7$).
+
+A Lógica: Dois loops que percorrem cada linha (i) e cada coluna (j) da imagem original.
+
+O Motivo: Garante que o filtro passará por todos os pixels da imagem para gerar o resultado completo.
+
+regiao: O código isola uma pequena vizinhança da imagem (do mesmo tamanho do kernel) centrada no pixel atual.
+
+regiao * kernel: Realiza uma multiplicação elemento a elemento. Se o pixel na imagem é 100 e o peso no kernel é 0.5, o resultado local é 50.
+
+
+RESULTADOS:
+O filtro de média (passa-baixa) tem como objetivo suavizar altas frequências. Uma transição brusca de preto para branco é a "alta frequência" mais forte que existe. Por isso, o filtro "ataca" essa quina e a transforma em um degradê suave.
+
+Quando você executa img_padded = np.pad(img, pad, mode=modo), o NumPy cria uma nova matriz maior que a original. A "mágica" está em como ele preenche esses pixels extras baseando-se no mode que você passa:
+
+*** Preenchimento com zeros (constant)
+Adiciona uma moldura de pixels pretos (valor 0) ao redor da imagem
+Resultado na média: Como você está somando zeros à média, as bordas da imagem resultante ficarão mais escuras (desbotadas).
+
+
+*** Espelhamento (reflect) 
+Ele "dobra" a imagem na borda. Se os últimos pixels eram [..., 253, 254, 255], a moldura será [254, 253, ...].
+Resultado na média: É a forma mais natural, pois mantém a continuidade das cores sem introduzir cores novas (como o preto).
+
+***Replicação (edge) 
+Ele apenas repete o último pixel da borda infinitamente para fora.
+Resultado na média: Evita o escurecimento das bordas, mas pode criar um efeito de "rastro" ou linhas retas se houver um objeto encostado na margem.
+
+*** Periódica (wrap) 
+Trata a imagem como um cilindro ou esfera. O que sai pela direita entra pela esquerda; o que sai por cima entra por baixo.
+Resultado na média: Na sua imagem dos quadrados, o topo (que é preto) vai "puxar" a cor branca do fundo da imagem para calcular a média, criando uma transição fantasmagórica na borda superior
+
+
+
+
+
+----3) Aplicar nas outras imagens: 
+A Área de Influência é MaiorQuando você usa um kernel de $3 \times 3$, cada pixel final é a média de apenas 9 pixels vizinhos. Isso borra apenas detalhes minúsculos, como um fio de cabelo ou um grão de poeira.Quando você aumenta para um kernel de $15 \times 15$, cada pixel agora é a média de 225 pixels ao seu redor. Isso significa que a cor de um pixel vai "vazar" para muito mais longe, misturando-se com cores que estavam distantes dele na imagem original.
+
+
+
+
+
+
+4) O filtro Gaussiano é considerado um filtro de suavização "inteligente". Enquanto o filtro da média trata todos os vizinhos com o mesmo peso, o Gaussiano entende que o que está mais perto do centro é mais importante.
+
+np.linspace(-(tamanho // 2), tamanho // 2, tamanho): Imagine um kernel de tamanho 5. Esta linha cria um vetor: [-2, -1, 0, 1, 2]. O 0 é o centro. O linspace garante que tenhamos uma régua onde o centro do filtro é a origem (zero).
+
+Sigma Pequeno: (ex: 0.5 ou 1.0)	O sino fica muito "fino" e pontiagudo. Apenas o pixel central tem peso alto.	A imagem quase não borra. Ela preserva os detalhes porque o filtro ignora os vizinhos distantes.
+
+Sigma Médio: O peso é distribuído de forma suave entre o centro e os vizinhos próximos.	Um desfoque natural e elegante. É o filtro usado para remover ruído sem destruir totalmente as bordas.
+
+Sigma Grande: (ex: 5.0 ou mais)	O sino fica "achatado" e largo. Quase todos os pixels no kernel passam a ter pesos parecidos.	O desfoque fica muito intenso, assemelhando-se ao filtro da média (borrão pesado), pois vizinhos distantes passam a influenciar muito o centro.
+
+
+
+
+
+
+5) Passa alta - serviam para "borrar" a imagem, este aqui serve para "enxergar" apenas onde existem mudanças bruscas.
+
+A Lógica Matemática: Note que a soma de todos os números desse kernel é exatamente zero ($-1 \times 8 + 8 = 0$). Em áreas onde há uma variação (uma borda), o pixel central (multiplicado por 8) será muito diferente dos vizinhos (multiplicados por -1), gerando um valor alto.
+
+Ao passar o filtro em uma borda, a matemática pode resultar em um número positivo (transição do escuro para o claro) ou negativo (transição do claro para o escuro).
+
+Se você não usar o abs, as bordas "negativas" ficariam pretas e desapareceriam. O valor absoluto garante que qualquer borda, não importa o sentido, brilhe no resultado final.
+
+
